@@ -1,0 +1,22 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="S3IcebergExample" type="Application" factoryName="Application">
+    <option name="MAIN_CLASS_NAME" value="com.example.S3IcebergExample" />
+    <module name="spark-iceberg-example" />
+    <option name="VM_PARAMETERS" value="-Dspark.hadoop.fs.s3a.endpoint=http://localhost:9000&#10;-Dspark.hadoop.fs.s3a.access.key=minioadmin&#10;-Dspark.hadoop.fs.s3a.secret.key=minioadmin&#10;-Dspark.hadoop.fs.s3a.path.style.access=true&#10;-Dspark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions&#10;-Dspark.sql.catalog.spark_catalog=org.apache.iceberg.spark.SparkSessionCatalog&#10;-Dspark.sql.catalog.spark_catalog.type=hive" />
+    <option name="PROGRAM_PARAMETERS" value="" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+    <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="false" />
+    <option name="ALTERNATIVE_JRE_PATH" value="" />
+    <option name="ENABLE_SWING_INSPECTOR" value="false" />
+    <option name="ENV_VARIABLES">
+      <map>
+        <entry key="AWS_ACCESS_KEY_ID" value="minioadmin" />
+        <entry key="AWS_SECRET_ACCESS_KEY" value="minioadmin" />
+      </map>
+    </option>
+    <option name="PASS_PARENT_ENVS" value="true" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component> 
