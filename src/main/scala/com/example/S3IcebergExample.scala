@@ -1,6 +1,7 @@
 package com.example
 
 import org.apache.spark.sql.SparkSession
+import com.dy.rawV2.gen.RawEventV2
 
 object S3IcebergExample {
   def main(args: Array[String]): Unit = {
@@ -12,7 +13,6 @@ object S3IcebergExample {
       .config("spark.hadoop.fs.s3a.secret.key", "minioadmin")
       .getOrCreate()
 
-    val df = spark.read.format("avro").load("s3a://iceberg-demo/users").as[RawEventV2]
     try {
       // Create a sample DataFrame
       val data = Seq(

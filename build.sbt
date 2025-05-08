@@ -22,14 +22,15 @@ libraryDependencies ++= Seq(
   "software.amazon.awssdk" % "aws-sdk-java" % "2.31.37",
   "software.amazon.awssdk" % "sts" % "2.31.37",
   "com.dynamicyield" % "event-collection-schema" % "7.2.0",  // Java dependency
-  "org.scalameta" %% "semanticdb-scalac" % "4.8.8",  // For better code completion
   "org.apache.spark" %% "spark-avro" % "3.5.0",  // For Avro support
   // Add Glue dependencies
   "org.apache.iceberg" % "iceberg-aws" % "1.4.3",
   "software.amazon.awssdk" % "glue" % "2.31.37",
   // Add Hive dependencies for local development
   "org.apache.iceberg" % "iceberg-hive-runtime" % "1.4.3",
-  "org.apache.hive" % "hive-metastore" % "3.1.3"
+  "org.apache.hive" % "hive-metastore" % "3.1.3",
+  // Add TypeSafe Config
+  "com.typesafe" % "config" % "1.4.3"
 )
 
 // Add Spark and Iceberg configurations
