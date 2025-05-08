@@ -5,8 +5,9 @@
 hs_err_pid*
 target/**
 project/target/
-*idea/
-*vscode/
+.idea/
+.vscode/
+.metals/
 *.iml
 *.ipr
 *.iws
