@@ -23,7 +23,13 @@ libraryDependencies ++= Seq(
   "software.amazon.awssdk" % "sts" % "2.31.37",
   "com.dynamicyield" % "event-collection-schema" % "7.2.0",  // Java dependency
   "org.scalameta" %% "semanticdb-scalac" % "4.8.8",  // For better code completion
-  "org.apache.spark" %% "spark-avro" % "3.5.0"  // For Avro support
+  "org.apache.spark" %% "spark-avro" % "3.5.0",  // For Avro support
+  // Add Glue dependencies
+  "org.apache.iceberg" % "iceberg-aws" % "1.4.3",
+  "software.amazon.awssdk" % "glue" % "2.31.37",
+  // Add Hive dependencies for local development
+  "org.apache.iceberg" % "iceberg-hive-runtime" % "1.4.3",
+  "org.apache.hive" % "hive-metastore" % "3.1.3"
 )
 
 // Add Spark and Iceberg configurations
@@ -32,6 +38,15 @@ Compile / run / javaOptions ++= Seq(
   "-Dspark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions",
   "-Dspark.sql.catalog.spark_catalog=org.apache.iceberg.spark.SparkSessionCatalog",
   "-Dspark.sql.catalog.spark_catalog.type=hive",
+  "-Dspark.sql.catalog.spark_catalog.warehouse=s3a://your-warehouse-bucket/warehouse",
+  // Local development: Use Hive catalog instead of Glue
+  "-Dspark.sql.catalog.spark_catalog.catalog-impl=org.apache.iceberg.hive.HiveCatalog",
+  "-Dspark.sql.catalog.spark_catalog.uri=thrift://localhost:9083",
+  "-Dspark.sql.catalog.spark_catalog.clients=1",
+  "-Dspark.sql.catalog.spark_catalog.io-impl=org.apache.iceberg.aws.s3.S3FileIO",
+  "-Dspark.sql.catalog.spark_catalog.s3.endpoint=http://localhost:9000",  // For local MinIO testing
+  "-Dspark.sql.catalog.spark_catalog.s3.access-key=minioadmin",
+  "-Dspark.sql.catalog.spark_catalog.s3.secret-key=minioadmin",
   // S3/MinIO configurations
   "-Dspark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem",
   "-Dspark.hadoop.fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider",
