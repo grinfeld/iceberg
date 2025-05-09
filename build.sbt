@@ -11,7 +11,7 @@ Global / semanticdbEnabled := true
 Global / semanticdbVersion := "4.8.8"
 ThisBuild / autoCompilerPlugins := true
 
-resolvers += "GitHub Packages" at "https://maven.pkg.github.com/DynamicYield/event-collection-schema"
+resolvers += "GitHub Package Registry" at "https://maven.pkg.github.com/DynamicYield/event-collection-schema"
 
 libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-sql" % "3.5.0",
