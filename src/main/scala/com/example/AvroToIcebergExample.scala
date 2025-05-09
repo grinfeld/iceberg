@@ -15,7 +15,6 @@ object AvroToIcebergExample {
 
     // Load configuration
     val config = parser.config
-
     val appConfig: Config = config.getConfig("app")
 
     // Create Spark session with configurations
@@ -36,46 +35,41 @@ object AvroToIcebergExample {
       from_avro(col("value"), RawEventV2.getClassSchema.toString).as("raw_event")
     ).select("raw_event.*")
 
-    // Get Avro schema and convert to Spark SQL schema using built-in converter
-    val avroSchema = RawEventV2.getClassSchema
-    val sparkSchema = SchemaConverters.toSqlType(avroSchema).dataType.asInstanceOf[org.apache.spark.sql.types.StructType]
+    val iceberg = parser.icebergConf()
 
-    // Create database if it doesn't exist
-    spark.sql(s"CREATE DATABASE IF NOT EXISTS ${appConfig.getString("iceberg.database")}")
-
-    // Check if table exists
-    val tableExists = spark.catalog.tableExists(appConfig.getString("iceberg.database"), appConfig.getString("iceberg.table"))
-
-    if (!tableExists) {
-      // Create table with initial schema
-      val tableLocation = s"${appConfig.getString("iceberg.warehouse")}/${appConfig.getString("iceberg.database")}/${appConfig.getString("iceberg.table")}"
-      val createTableSQL = s"""
-        CREATE TABLE ${appConfig.getString("iceberg.database")}.${appConfig.getString("iceberg.table")} (
-          ${sparkSchema.fields.map(field => s"${field.name} ${field.dataType.sql}").mkString(",\n          ")}
-        ) USING iceberg
-      """
-      
-      println("Creating new table with schema:")
-      println(createTableSQL)
-      
-      spark.sql(createTableSQL)
-    } else {
-      // Table exists, we'll let Iceberg handle schema evolution automatically
-      println("Table already exists. Iceberg will handle schema evolution automatically.")
+    if (config.getBoolean("app.create.table")) {
+      createTable(spark, iceberg)
     }
 
     // Write to Iceberg table - Iceberg will automatically handle schema evolution
-    rawEvents.writeTo(s"${appConfig.getString("iceberg.database")}.${appConfig.getString("iceberg.table")}")
-      .append()
+    rawEvents.writeTo(s"${iceberg.database}.${iceberg.table}").append()
 
     // Print current schema and data
     println("\nCurrent table schema:")
-    spark.table(s"${appConfig.getString("iceberg.database")}.${appConfig.getString("iceberg.table")}").printSchema()
+    spark.table(s"${iceberg.database}.${iceberg.table}").printSchema()
     
     println("\nData in Iceberg table:")
-    spark.table(s"${appConfig.getString("iceberg.database")}.${appConfig.getString("iceberg.table")}")
-      .show(5, truncate = false)
+    spark.table(s"${iceberg.database}.${iceberg.table}").show(5, truncate = false)
 
     spark.stop()
+  }
+
+  private def createTable(spark: SparkSession, iceberg: IcebergConf): Unit = {
+    // Get Avro schema and convert to Spark SQL schema using built-in converter
+    // Check if table exists
+    val tableExists = spark.catalog.tableExists(iceberg.database, iceberg.table)
+    if (tableExists) {
+      val avroSchema = RawEventV2.getClassSchema
+      val sparkSchema = SchemaConverters.toSqlType(avroSchema).dataType.asInstanceOf[org.apache.spark.sql.types.StructType]
+      // Create table with initial schema
+      println("Creating new table with schema:")
+
+      spark.sql(
+        s"""
+        CREATE TABLE ${iceberg.fullTableName} (
+          ${sparkSchema.fields.map(field => s"${field.name} ${field.dataType.sql}").mkString(",\n\t\t")}
+        ) USING iceberg
+      """)
+    }
   }
 } 

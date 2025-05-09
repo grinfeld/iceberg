@@ -1,6 +1,6 @@
 package com.example
 
-import com.typesafe.config.{Config, ConfigFactory, ConfigValueType}
+import com.typesafe.config.{Config, ConfigBeanFactory, ConfigFactory, ConfigValueType}
 import org.apache.spark.sql.SparkSession
 
 import scala.collection.JavaConverters.iterableAsScalaIterableConverter
@@ -11,6 +11,10 @@ case class ConfigParser private(config: Config) {
   def applyConfig(key: String, sparkBuilder: SparkSession.Builder): SparkSession.Builder  = {
     applyConfig(config.getConfig(key), "", sparkBuilder)
     sparkBuilder
+  }
+
+  def icebergConf(): IcebergConf = {
+    IcebergConf(config.getString("app.iceberg.database"), config.getString("app.iceberg.table"))
   }
 
   private def applyConfig(config: Config, prefix: String = "", sparkBuilder: SparkSession.Builder): Unit = {
