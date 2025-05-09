@@ -1,6 +1,6 @@
 package com.example
 
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.Config
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.avro.functions.from_avro
 import org.apache.spark.sql.functions.col
@@ -9,42 +9,27 @@ import com.dy.rawV2.gen.RawEventV2
 
 object AvroToIcebergExample {
   def main(args: Array[String]): Unit = {
+    val profile = System.getProperty("PROFILE")
+
+    val parser = ConfigParser(profile)
+
     // Load configuration
-    val config = ConfigFactory.load()
-    val appConfig = config.getConfig("app")
-    
+    val config = parser.config
+
+    val appConfig: Config = config.getConfig("app")
+
     // Create Spark session with configurations
-    val sparkBuilder = SparkSession.builder()
+    var sparkBuilder: SparkSession.Builder = SparkSession.builder()
       .appName(appConfig.getString("name"))
-      .master(appConfig.getString("master"))
-    
-    // Apply all Spark configurations from the config file
-    def applyConfig(config: Config, prefix: String = ""): Unit = {
-      config.entrySet().forEach { entry =>
-        val key = entry.getKey
-        val value = entry.getValue.unwrapped().toString
-        
-        // Convert config path to Spark config key
-        val sparkKey = s"spark.${prefix}${key}".replace("_", ".")
-        sparkBuilder.config(sparkKey, value)
-      }
-    }
-    
-    // Apply common Spark SQL configurations
-    applyConfig(appConfig.getConfig("spark.sql"), "sql.")
-    
-    // Apply catalog-specific configurations
-    val catalogConfig = appConfig.getConfig("spark.sql.catalog.spark_catalog")
-    applyConfig(catalogConfig, "sql.catalog.spark_catalog.")
-    
-    // Apply Hadoop/S3 configurations
-    applyConfig(appConfig.getConfig("spark.hadoop"), "hadoop.")
-    
+
+    if(appConfig.hasPath("master"))
+      sparkBuilder = sparkBuilder.master(appConfig.getString("master"))
+
+    sparkBuilder = parser.applyConfig("app.config", sparkBuilder)
+
     val spark = sparkBuilder.getOrCreate()
 
-    // Read Avro data from S3
-    val avroPath = s"s3a://${appConfig.getString("avro.bucket")}/${appConfig.getString("avro.path")}"
-    val avroData = spark.read.format("avro").load(avroPath)
+    val avroData = spark.read.format("avro").load(appConfig.getString("s3.from"))
 
     // Convert to RawEventV2 format
     val rawEvents = avroData.select(
@@ -68,7 +53,6 @@ object AvroToIcebergExample {
         CREATE TABLE ${appConfig.getString("iceberg.database")}.${appConfig.getString("iceberg.table")} (
           ${sparkSchema.fields.map(field => s"${field.name} ${field.dataType.sql}").mkString(",\n          ")}
         ) USING iceberg
-        LOCATION '$tableLocation'
       """
       
       println("Creating new table with schema:")
