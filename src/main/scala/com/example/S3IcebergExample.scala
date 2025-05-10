@@ -1,7 +1,6 @@
 package com.example
 
 import org.apache.spark.sql.SparkSession
-import com.dy.rawV2.gen.RawEventV2
 
 object S3IcebergExample {
   def main(args: Array[String]): Unit = {

@@ -31,18 +31,29 @@ object SparkFlowIceberg {
         // Check if table exists
         val tableExists = spark.catalog.tableExists(iceberg.database, iceberg.table)
         if (!tableExists) {
+
+          val doesDbExist = spark.catalog.databaseExists(iceberg.database)
+          if (!doesDbExist) {
+            val createDbSql = s"CREATE DATABASE ${iceberg.database}"
+            // Create table with Parquet schema
+            println(s"Creating new db:\n$createDbSql")
+            spark.sql(createDbSql)
+          }
+
           // Read Parquet data to get schema
           val parquetPath = config.getString("app.s3.from")
-          val parquetSchema = spark.read.parquet(parquetPath).schema
-          
-          // Create table with Parquet schema
-          println("Creating new table with schema:")
-          spark.sql(
-            s"""
+          spark.read.parquet(parquetPath).show(1)
+          val parquetSchema = spark.read.parquet(parquetPath)
+            .select("sectionId","dyid","requestTimestamp","procTimestamp","eventUuid","resolvedTimestamp","eventType","session","expSession","rri","date","hour")
+            .schema
+          val createTableSql = s"""
               CREATE TABLE ${iceberg.fullTableName} (
                 ${parquetSchema.fields.map(field => s"${field.name} ${field.dataType.sql}").mkString(",\n\t\t")}
               ) USING iceberg
-            """)
+            """
+          // Create table with Parquet schema
+          println(s"Creating new table with schema:\n$createTableSql")
+          spark.sql(createTableSql)
         }
       }
 
@@ -79,10 +90,11 @@ object SparkFlowIceberg {
         val value: ConfigValue = entry.getValue
 
         val nextPrefix = if ("".equals(prefix)) key else s"$prefix.$key"
-        if ("def-impl".equals(key)) {
+        if (key.endsWith(".def-impl")) {
+
           // spark.conf.set("spark.sql.catalog.<catalog name>", "org.apache.iceberg.spark.SparkCatalog")
           // or custom one
-          setFn(nextPrefix, value.unwrapped().toString)
+          setFn(key.replace(".def-impl", ""), value.unwrapped().toString)
         } else {
           value.valueType() match {
             case ConfigValueType.LIST =>
@@ -116,6 +128,7 @@ object SparkFlowIceberg {
   implicit class ConfigStarter(profile: String) {
     def createConfig(): Config = {
       ConfigFactory.load(s"application.$profile.conf")
+        .withFallback(ConfigFactory.load("application.conf"))
     }
   }
 }
