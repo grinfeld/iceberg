@@ -2,10 +2,8 @@ package com.example
 
 import com.example.SparkFlowIceberg.{ConfigParser, ConfigStarter}
 
-object AvroToIcebergExample {
-  def main(args: Array[String]): Unit = {
-    val profile = System.getProperty("PROFILE")
-
+object SimpleIcebergApp {
+  def runApp(profile: String): Unit = {
     val sparkFlow =  profile
       .createConfig()
       .sparkFlow()
@@ -21,12 +19,10 @@ object AvroToIcebergExample {
     // Print current schema and data
     println("\nCurrent table schema:")
     sparkFlow.spark.table(icebergConf.fullTableName).printSchema()
-    
+
     println("\nData in Iceberg table:")
     sparkFlow.spark.table(icebergConf.fullTableName).show(5, truncate = false)
 
     sparkFlow.spark.stop()
   }
-
-
-} 
+}
