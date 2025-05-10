@@ -11,8 +11,6 @@ Global / semanticdbEnabled := true
 Global / semanticdbVersion := "4.8.8"
 ThisBuild / autoCompilerPlugins := true
 
-resolvers += "GitHub Package Registry" at "https://maven.pkg.github.com/DynamicYield/event-collection-schema"
-
 libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-sql" % "3.5.0",
   "org.apache.iceberg" % "iceberg-spark-runtime-3.5_2.12" % "1.4.3",
@@ -21,8 +19,6 @@ libraryDependencies ++= Seq(
   "software.amazon.awssdk" % "s3" % "2.31.37",
   "software.amazon.awssdk" % "aws-sdk-java" % "2.31.37",
   "software.amazon.awssdk" % "sts" % "2.31.37",
-  "com.dynamicyield" % "event-collection-schema" % "7.2.0",  // Java dependency
-  "org.apache.spark" %% "spark-avro" % "3.5.0",  // For Avro support
   // Add Glue dependencies
   "org.apache.iceberg" % "iceberg-aws" % "1.4.3",
   "software.amazon.awssdk" % "glue" % "2.31.37",

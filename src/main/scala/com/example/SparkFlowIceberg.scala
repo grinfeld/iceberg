@@ -1,10 +1,7 @@
 package com.example
 
-import com.dy.rawV2.gen.RawEventV2
 import com.typesafe.config.{Config, ConfigFactory, ConfigValue, ConfigValueType}
 import org.apache.spark.sql.{DataFrame, SparkSession}
-import org.apache.spark.sql.avro.SchemaConverters
-
 import scala.collection.JavaConverters.iterableAsScalaIterableConverter
 
 object SparkFlowIceberg {
