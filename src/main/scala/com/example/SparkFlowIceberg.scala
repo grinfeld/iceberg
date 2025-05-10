@@ -31,19 +31,19 @@ object SparkFlowIceberg {
 
       private def createTableIfNotExist(): Unit = {
         val iceberg: IcebergConf = config.icebergConf()
-        // Get Avro schema and convert to Spark SQL schema using built-in converter
         // Check if table exists
         val tableExists = spark.catalog.tableExists(iceberg.database, iceberg.table)
-        if (tableExists) {
-          val avroSchema = RawEventV2.getClassSchema
-          val sparkSchema = SchemaConverters.toSqlType(avroSchema).dataType.asInstanceOf[org.apache.spark.sql.types.StructType]
-          // Create table with initial schema
+        if (!tableExists) {
+          // Read Parquet data to get schema
+          val parquetPath = config.getString("app.s3.from")
+          val parquetSchema = spark.read.parquet(parquetPath).schema
+          
+          // Create table with Parquet schema
           println("Creating new table with schema:")
-
           spark.sql(
             s"""
               CREATE TABLE ${iceberg.fullTableName} (
-                ${sparkSchema.fields.map(field => s"${field.name} ${field.dataType.sql}").mkString(",\n\t\t")}
+                ${parquetSchema.fields.map(field => s"${field.name} ${field.dataType.sql}").mkString(",\n\t\t")}
               ) USING iceberg
             """)
         }
