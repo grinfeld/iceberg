@@ -32,9 +32,9 @@ object SparkFlowIceberg {
         val tableExists = spark.catalog.tableExists(iceberg.database, iceberg.table)
         if (!tableExists) {
 
-          val doesDbExist = spark.catalog.databaseExists(iceberg.database)
+          val doesDbExist = spark.catalog.databaseExists(iceberg.fullDbName)
           if (!doesDbExist) {
-            val createDbSql = s"CREATE DATABASE ${iceberg.database}"
+            val createDbSql = s"CREATE NAMESPACE IF NOT EXISTS ${iceberg.fullDbName}"
             // Create table with Parquet schema
             println(s"Creating new db:\n$createDbSql")
             spark.sql(createDbSql)
@@ -56,10 +56,23 @@ object SparkFlowIceberg {
           spark.sql(createTableSql)
         }
       }
-
   }
 
   implicit class ConfigParser (config: Config) {
+    lazy val iceberg: IcebergConf = createIcebergConf()
+
+    private def createIcebergConf(): IcebergConf = {
+      val catalog = config.getConfig("app.config.spark.sql.catalog").entrySet()
+
+      val catalogType = catalog.asScala
+        .filter(e => e.getKey.matches(".+\\.type"))
+        .map(e => e.getValue.unwrapped().asInstanceOf[String]).take(1).toList
+
+      if (catalogType.isEmpty)
+        throw new IllegalArgumentException("Catalog Type couldn't be null or empty")
+
+      IcebergConf(catalogType.head, config.getString("app.iceberg.database"), config.getString("app.iceberg.table"))
+    }
 
     def sparkFlow(): SparkFlowIceberg = {
       val appConfig: Config = config.getConfig("app")
@@ -81,7 +94,7 @@ object SparkFlowIceberg {
     }
 
     def icebergConf(): IcebergConf = {
-      IcebergConf(config.getString("app.iceberg.database"), config.getString("app.iceberg.table"))
+      iceberg
     }
 
     private def applyConfig(config: Config, prefix: String = "", setFn: (String, Any) => Unit): Unit = {
