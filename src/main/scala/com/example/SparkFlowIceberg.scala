@@ -29,9 +29,8 @@ object SparkFlowIceberg {
       private def createTableIfNotExist(): Unit = {
         val iceberg: IcebergConf = config.icebergConf()
         // Check if table exists
-        val tableExists = spark.catalog.tableExists(iceberg.database, iceberg.table)
+        val tableExists = spark.catalog.tableExists(iceberg.fullDbName, iceberg.table)
         if (!tableExists) {
-
           val doesDbExist = spark.catalog.databaseExists(iceberg.fullDbName)
           if (!doesDbExist) {
             val createDbSql = s"CREATE NAMESPACE IF NOT EXISTS ${iceberg.fullDbName}"
@@ -83,14 +82,16 @@ object SparkFlowIceberg {
 
       applyConfig(config.getConfig("app.config"), "", (key, value) => {
         value match {
-          case d: Double => sparkBuilder.config(key, d)
-          case l: Long => sparkBuilder.config(key, l)
-          case b: Boolean => sparkBuilder.config(key, b)
-          case any: Any => sparkBuilder.config(key, any.toString)
+          case d: Double => sparkBuilder = sparkBuilder.config(key, d)
+          case l: Long => sparkBuilder = sparkBuilder.config(key, l)
+          case b: Boolean => sparkBuilder = sparkBuilder.config(key, b)
+          case any: Any => sparkBuilder = sparkBuilder.config(key, any.toString)
         }
       })
 
-      SparkFlowIceberg(sparkBuilder.getOrCreate(), config)
+      sparkBuilder.config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
+      val spark = sparkBuilder.getOrCreate()
+      SparkFlowIceberg(spark, config)
     }
 
     def icebergConf(): IcebergConf = {

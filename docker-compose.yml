@@ -19,18 +19,38 @@ services:
       timeout: 20s
       retries: 3
 
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - 5432:5432
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: metastore
+      POSTGRES_USER: hive
+      POSTGRES_PASSWORD: hivepassword
+
   hive-metastore:
     image: apache/hive:3.1.3
     container_name: hive-metastore
     ports:
       - "9083:9083"  # Hive Metastore port
     environment:
-      DB_DRIVER: derby
-      METASTORE_DB_HOST: hive-metastore
-      METASTORE_DB_PORT: 9083
+      DB_DRIVER: postgres
       SERVICE_NAME: metastore
+      HIVE_DB: metastore
+      HIVE_USER: hive
+      HIVE_PASSWORD: hivepassword
+      HIVE_DB_HOST: postgres
+      HIVE_DB_PORT: 5432
+    entrypoint: >
+      sh -c "
+      mkdir -p /tmp/hive/ &&
+      chmod -R 755 /tmp/hive/ && 
+      /opt/hive/bin/schematool -dbType postgres -initSchema --verbose &&
+      /opt/hive/bin/hive --service metastore"
     volumes:
-      - hive:/home/hive/.beeline
+      - ./scripts/hive-site.xml:/opt/hive/conf/hive-site.xml
 #    healthcheck:
 #      test: ["CMD", "nc", "-z", "localhost", "9083"]
 #      interval: 30s
@@ -38,6 +58,7 @@ services:
 #      retries: 3
 
 volumes:
-  hive:
+  postgres:
+  hive-tmp:
   minio_data:
     driver: local 
