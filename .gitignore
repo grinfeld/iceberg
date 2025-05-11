@@ -12,3 +12,4 @@ project/target/
 *.ipr
 *.iws
 *.xml
+.bsp/
