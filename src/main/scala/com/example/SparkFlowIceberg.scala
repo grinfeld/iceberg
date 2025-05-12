@@ -43,9 +43,7 @@ object SparkFlowIceberg {
           // Read Parquet data to get schema
           val parquetPath = config.getString("app.s3.from")
           spark.read.parquet(parquetPath).show(1)
-          val parquetSchema = spark.read.parquet(parquetPath)
-            //.select("sectionId","dyid","requestTimestamp","procTimestamp","eventUuid","resolvedTimestamp","eventType","session","expSession","rri","date","hour")
-            .schema
+          val parquetSchema = spark.read.parquet(parquetPath).schema
           val createTableSql = s"""
               CREATE TABLE IF NOT EXISTS ${iceberg.fullTableName} (
                 ${parquetSchema.fields.map(field => s"${field.name} ${field.dataType.sql}").mkString(",\n\t\t")}
@@ -62,7 +60,11 @@ object SparkFlowIceberg {
     lazy val iceberg: IcebergConf = createIcebergConf()
 
     private def createIcebergConf(): IcebergConf = {
-      IcebergConf(config.getString("profile"), config.getString("app.iceberg.database"), config.getString("app.iceberg.table"))
+      val catalogType = config.getConfig("app.config.spark.sql.catalog").entrySet()
+        .asScala.filter(e => e.getKey.matches("^.+\\.type"))
+        .map(_.getValue.unwrapped().asInstanceOf[String])
+        .take(1).fold("")((a1, a2) => a1 + a2)
+      IcebergConf(catalogType, config.getString("app.iceberg.database"), config.getString("app.iceberg.table"))
     }
 
     def sparkFlow(): SparkFlowIceberg = {
