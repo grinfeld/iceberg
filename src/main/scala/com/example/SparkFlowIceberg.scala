@@ -1,7 +1,8 @@
 package com.example
 
-import com.typesafe.config.{Config, ConfigFactory, ConfigValue, ConfigValueType}
+import com.typesafe.config.{Config, ConfigFactory, ConfigValue, ConfigValueFactory, ConfigValueType}
 import org.apache.spark.sql.{DataFrame, SparkSession}
+
 import scala.collection.JavaConverters.iterableAsScalaIterableConverter
 
 object SparkFlowIceberg {
@@ -46,7 +47,7 @@ object SparkFlowIceberg {
             .select("sectionId","dyid","requestTimestamp","procTimestamp","eventUuid","resolvedTimestamp","eventType","session","expSession","rri","date","hour")
             .schema
           val createTableSql = s"""
-              CREATE TABLE ${iceberg.fullTableName} (
+              CREATE TABLE IF NOT EXISTS ${iceberg.fullTableName} (
                 ${parquetSchema.fields.map(field => s"${field.name} ${field.dataType.sql}").mkString(",\n\t\t")}
               ) USING iceberg
             """
@@ -61,16 +62,7 @@ object SparkFlowIceberg {
     lazy val iceberg: IcebergConf = createIcebergConf()
 
     private def createIcebergConf(): IcebergConf = {
-      val catalog = config.getConfig("app.config.spark.sql.catalog").entrySet()
-
-      val catalogType = catalog.asScala
-        .filter(e => e.getKey.matches(".+\\.type"))
-        .map(e => e.getValue.unwrapped().asInstanceOf[String]).take(1).toList
-
-      if (catalogType.isEmpty)
-        throw new IllegalArgumentException("Catalog Type couldn't be null or empty")
-
-      IcebergConf(catalogType.head, config.getString("app.iceberg.database"), config.getString("app.iceberg.table"))
+      IcebergConf(config.getString("profile"), config.getString("app.iceberg.database"), config.getString("app.iceberg.table"))
     }
 
     def sparkFlow(): SparkFlowIceberg = {
@@ -89,7 +81,6 @@ object SparkFlowIceberg {
         }
       })
 
-      sparkBuilder.config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
       val spark = sparkBuilder.getOrCreate()
       SparkFlowIceberg(spark, config)
     }
@@ -143,6 +134,7 @@ object SparkFlowIceberg {
     def createConfig(): Config = {
       ConfigFactory.load(s"application.$profile.conf")
         .withFallback(ConfigFactory.load("application.conf"))
+        .withValue("profile", ConfigValueFactory.fromAnyRef(profile))
     }
   }
 }

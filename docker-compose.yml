@@ -20,7 +20,8 @@ services:
       retries: 3
 
   postgres:
-    image: postgres:16-alpine
+    # version should be lower postgres 10.x
+    image: postgres:9.6.24
     ports:
       - 5432:5432
     volumes:
@@ -29,12 +30,15 @@ services:
       POSTGRES_DB: metastore
       POSTGRES_USER: hive
       POSTGRES_PASSWORD: hivepassword
+    command: >
+      postgres -c config_file=/var/lib/postgresql/data/postgresql.conf
 
   hive-metastore:
     image: apache/hive:3.1.3
     container_name: hive-metastore
     ports:
       - "9083:9083"  # Hive Metastore port
+      - "10000:10000"  # beeline
     environment:
       DB_DRIVER: postgres
       SERVICE_NAME: metastore
@@ -43,14 +47,28 @@ services:
       HIVE_PASSWORD: hivepassword
       HIVE_DB_HOST: postgres
       HIVE_DB_PORT: 5432
+      HIVE_LOG_LEVEL: DEBUG
+#    entrypoint: >
+#      sh -c "
+#      mkdir -p /tmp/hive/ &&
+#      chmod -R 755 /tmp/hive/ &&
+#      cd /home
+#      mkdir -p hive
+#      chmod -R 755 /home/hive/ &&
+#      /opt/hive/bin/schematool -dbType postgres -initSchema --verbose &&
+#      /opt/hive/bin/hive --service metastore"
     entrypoint: >
       sh -c "
       mkdir -p /tmp/hive/ &&
-      chmod -R 755 /tmp/hive/ && 
-      /opt/hive/bin/schematool -dbType postgres -initSchema --verbose &&
+      chmod -R 755 /tmp/hive/ &&
+      cd /home
+      mkdir -p hive
+      chmod -R 755 /home/hive/ &&
       /opt/hive/bin/hive --service metastore"
     volumes:
       - ./scripts/hive-site.xml:/opt/hive/conf/hive-site.xml
+      - ./scripts/hive-lib/aws-java-sdk-bundle-1.11.1026.jar:/opt/hive/lib/aws-java-sdk-bundle-1.11.1026.jar
+      - ./scripts/hive-lib/hadoop-aws-3.3.4.jar:/opt/hive/lib/hadoop-aws-3.3.4.jar
 #    healthcheck:
 #      test: ["CMD", "nc", "-z", "localhost", "9083"]
 #      interval: 30s
