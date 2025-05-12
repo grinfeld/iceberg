@@ -44,7 +44,7 @@ object SparkFlowIceberg {
           val parquetPath = config.getString("app.s3.from")
           spark.read.parquet(parquetPath).show(1)
           val parquetSchema = spark.read.parquet(parquetPath)
-            .select("sectionId","dyid","requestTimestamp","procTimestamp","eventUuid","resolvedTimestamp","eventType","session","expSession","rri","date","hour")
+            //.select("sectionId","dyid","requestTimestamp","procTimestamp","eventUuid","resolvedTimestamp","eventType","session","expSession","rri","date","hour")
             .schema
           val createTableSql = s"""
               CREATE TABLE IF NOT EXISTS ${iceberg.fullTableName} (

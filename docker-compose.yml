@@ -34,7 +34,9 @@ services:
       postgres -c config_file=/var/lib/postgresql/data/postgresql.conf
 
   hive-metastore:
-    image: apache/hive:3.1.3
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
     container_name: hive-metastore
     ports:
       - "9083:9083"  # Hive Metastore port
@@ -50,25 +52,11 @@ services:
       HIVE_LOG_LEVEL: DEBUG
 #    entrypoint: >
 #      sh -c "
-#      mkdir -p /tmp/hive/ &&
-#      chmod -R 755 /tmp/hive/ &&
-#      cd /home
-#      mkdir -p hive
-#      chmod -R 755 /home/hive/ &&
 #      /opt/hive/bin/schematool -dbType postgres -initSchema --verbose &&
 #      /opt/hive/bin/hive --service metastore"
     entrypoint: >
       sh -c "
-      mkdir -p /tmp/hive/ &&
-      chmod -R 755 /tmp/hive/ &&
-      cd /home
-      mkdir -p hive
-      chmod -R 755 /home/hive/ &&
       /opt/hive/bin/hive --service metastore"
-    volumes:
-      - ./scripts/hive-site.xml:/opt/hive/conf/hive-site.xml
-      - ./scripts/hive-lib/aws-java-sdk-bundle-1.11.1026.jar:/opt/hive/lib/aws-java-sdk-bundle-1.11.1026.jar
-      - ./scripts/hive-lib/hadoop-aws-3.3.4.jar:/opt/hive/lib/hadoop-aws-3.3.4.jar
 #    healthcheck:
 #      test: ["CMD", "nc", "-z", "localhost", "9083"]
 #      interval: 30s
@@ -77,6 +65,5 @@ services:
 
 volumes:
   postgres:
-  hive-tmp:
   minio_data:
     driver: local 
