@@ -1,6 +1,7 @@
 package com.example
 
 import com.example.SparkFlowIceberg.{ConfigParser, ConfigStarter}
+import org.apache.spark.sql.functions.{col, timestamp_millis}
 
 object SimpleIcebergApp {
   def runApp(profile: String): Unit = {
@@ -12,6 +13,7 @@ object SimpleIcebergApp {
 
     // Write to Iceberg table - Iceberg will automatically handle schema evolution
     val rawEvents = sparkFlow.readParquet()
+      .withColumn("ts", timestamp_millis(col("resolvedTimestamp")))
 
     // Write to Iceberg table - Iceberg will automatically handle schema evolution
     rawEvents.writeTo(icebergConf.fullTableName).append()

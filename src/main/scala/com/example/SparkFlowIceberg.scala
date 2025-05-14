@@ -29,26 +29,28 @@ object SparkFlowIceberg {
 
       private def createTableIfNotExist(): Unit = {
         val iceberg: IcebergConf = config.icebergConf()
+        val doesDbExist = spark.catalog.databaseExists(iceberg.fullDbName)
+        if (!doesDbExist) {
+          val createDbSql = s"CREATE NAMESPACE IF NOT EXISTS ${iceberg.fullDbName}"
+          // Create table with Parquet schema
+          println(s"Creating new db:\n$createDbSql")
+          spark.sql(createDbSql)
+        }
         // Check if table exists
         val tableExists = spark.catalog.tableExists(iceberg.fullDbName, iceberg.table)
         if (!tableExists) {
-          val doesDbExist = spark.catalog.databaseExists(iceberg.fullDbName)
-          if (!doesDbExist) {
-            val createDbSql = s"CREATE NAMESPACE IF NOT EXISTS ${iceberg.fullDbName}"
-            // Create table with Parquet schema
-            println(s"Creating new db:\n$createDbSql")
-            spark.sql(createDbSql)
-          }
-
           // Read Parquet data to get schema
           val parquetPath = config.getString("app.s3.from")
           spark.read.parquet(parquetPath).show(1)
           val parquetSchema = spark.read.parquet(parquetPath).schema
           val createTableSql = s"""
               CREATE TABLE IF NOT EXISTS ${iceberg.fullTableName} (
-                ${parquetSchema.fields.map(field => s"${field.name} ${field.dataType.sql}").mkString(",\n\t\t")}
+                ${parquetSchema.fields.map(field => s"${field.name} ${field.dataType.sql}").mkString(",\n\t\t")},
+                ts Timestamp
               ) USING iceberg
+              PARTITIONED BY (sectionId, dyid, eventType, days(ts), hours(ts))
             """
+          // partition: days(ts) automatically contains years, months, days
           // Create table with Parquet schema
           println(s"Creating new table with schema:\n$createTableSql")
           spark.sql(createTableSql)
@@ -98,7 +100,6 @@ object SparkFlowIceberg {
 
         val nextPrefix = if ("".equals(prefix)) key else s"$prefix.$key"
         if (key.endsWith(".def-impl")) {
-
           // spark.conf.set("spark.sql.catalog.<catalog name>", "org.apache.iceberg.spark.SparkCatalog")
           // or custom one
           setFn(key.replace(".def-impl", ""), value.unwrapped().toString)
