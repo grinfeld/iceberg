@@ -29,6 +29,9 @@ object SparkFlowIceberg {
 
       private def createTableIfNotExist(): Unit = {
         val iceberg: IcebergConf = config.icebergConf()
+
+        //spark.sql(s"DROP table ${iceberg.fullTableName}")
+
         val doesDbExist = spark.catalog.databaseExists(iceberg.fullDbName)
         if (!doesDbExist) {
           val createDbSql = s"CREATE NAMESPACE IF NOT EXISTS ${iceberg.fullDbName}"
@@ -48,7 +51,7 @@ object SparkFlowIceberg {
                 ${parquetSchema.fields.map(field => s"${field.name} ${field.dataType.sql}").mkString(",\n\t\t")},
                 ts Timestamp
               ) USING iceberg
-              PARTITIONED BY (sectionId, dyid, eventType, days(ts), hours(ts))
+              PARTITIONED BY (sectionId, dyid, eventType, hours(ts))
             """
           // partition: days(ts) automatically contains years, months, days
           // Create table with Parquet schema
