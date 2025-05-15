@@ -28,6 +28,9 @@ object SparkFlowIceberg {
       }
 
       private def createTableIfNotExist(): Unit = {
+
+        if
+
         val iceberg: IcebergConf = config.icebergConf()
 
 /*
