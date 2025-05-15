@@ -30,7 +30,10 @@ object SparkFlowIceberg {
       private def createTableIfNotExist(): Unit = {
         val iceberg: IcebergConf = config.icebergConf()
 
-        //spark.sql(s"DROP table ${iceberg.fullTableName}")
+/*
+        spark.sql(s"DROP table ${iceberg.fullTableName}")
+        spark.sql(s"DROP NAMESPACE ${iceberg.fullDbName}")
+*/
 
         val doesDbExist = spark.catalog.databaseExists(iceberg.fullDbName)
         if (!doesDbExist) {
@@ -46,12 +49,18 @@ object SparkFlowIceberg {
           val parquetPath = config.getString("app.s3.from")
           spark.read.parquet(parquetPath).show(1)
           val parquetSchema = spark.read.parquet(parquetPath).schema
+
+          val partitionBy = config.getPartitionBy() match {
+            case List() => ""
+            case l: List[PartitionBy] => l.map(_.expr()).mkString("PARTITIONED BY (", ", ", ")")
+          }
+
           val createTableSql = s"""
               CREATE TABLE IF NOT EXISTS ${iceberg.fullTableName} (
                 ${parquetSchema.fields.map(field => s"${field.name} ${field.dataType.sql}").mkString(",\n\t\t")},
                 ts Timestamp
               ) USING iceberg
-              PARTITIONED BY (sectionId, dyid, eventType, hours(ts))
+              $partitionBy
             """
           // partition: days(ts) automatically contains years, months, days
           // Create table with Parquet schema
@@ -70,6 +79,23 @@ object SparkFlowIceberg {
         .map(_.getValue.unwrapped().asInstanceOf[String])
         .take(1).fold("")((a1, a2) => a1 + a2)
       IcebergConf(catalogType, config.getString("app.iceberg.database"), config.getString("app.iceberg.table"))
+    }
+
+    def getPartitionBy(): List[PartitionBy] = {
+      if (!config.hasPath("app.partition-by"))
+        return List()
+      config.getConfigList("app.partition-by")
+        .asScala
+        .map(conf => {
+          val col = conf.getString("col")
+          conf.getString("type") match  {
+            case "identity" => Field(col)
+            case "bucket" => Bucket(col, conf.getInt("size"))
+            case "date" => DateType(col, conf.getString("func"))
+            case "truncate" => Truncate(col, conf.getInt("size"))
+            case v: Any => throw new IllegalArgumentException("Only identity, bucket or date supported. But received " + v.toString)
+          }
+        }).toList
     }
 
     def sparkFlow(): SparkFlowIceberg = {
