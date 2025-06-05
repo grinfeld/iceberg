@@ -28,15 +28,10 @@ object SparkFlowIceberg {
       }
 
       private def createTableIfNotExist(): Unit = {
-
-        if
-
         val iceberg: IcebergConf = config.icebergConf()
 
-/*
-        spark.sql(s"DROP table ${iceberg.fullTableName}")
-        spark.sql(s"DROP NAMESPACE ${iceberg.fullDbName}")
-*/
+/*        spark.sql(s"DROP table ${iceberg.fullTableName}")
+        spark.sql(s"DROP NAMESPACE ${iceberg.fullDbName}")*/
 
         val doesDbExist = spark.catalog.databaseExists(iceberg.fullDbName)
         if (!doesDbExist) {
