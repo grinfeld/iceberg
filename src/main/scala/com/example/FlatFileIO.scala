@@ -1,3 +1,4 @@
+/*
 package com.example
 
 import org.apache.hadoop.fs.{FileSystem, Path}
@@ -65,3 +66,4 @@ class FlatFileIO extends FileIO {
 
   override def newInputFile(s: String): InputFile = inner.newInputFile(s)
 }
+*/

@@ -3,7 +3,7 @@ package com.example
 import com.typesafe.config.{Config, ConfigFactory, ConfigValue, ConfigValueFactory, ConfigValueType}
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
-import scala.collection.JavaConverters.iterableAsScalaIterableConverter
+import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 object SparkFlowIceberg {
 
