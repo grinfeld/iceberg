@@ -1,69 +1,79 @@
 services:
+  # MinIO for local S3-compatible storage
   minio:
     image: minio/minio:latest
-    container_name: minio
     ports:
-      - "9000:9000"  # API
-      - "9001:9001"  # Console
+      - "9000:9000"
+      - "9001:9001"
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
       MINIO_REGION: us-east-1
-      MINIO_BROWSER_REDIRECT_URL: http://localhost:9001
     volumes:
       - minio_data:/data
     command: server /data --console-address ":9001"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
       interval: 30s
       timeout: 20s
       retries: 3
+    restart: always
+
+  # MinIO Client for setup (bucket creation and policies)
+  minio-client:
+    image: minio/mc:latest
+    container_name: minio-client-airflow
+    depends_on:
+      - minio
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_REGION: us-east-1
+      STORAGE_ENDPOINT: http://minio:9000
+    entrypoint: [ "sh", "-c", "/scripts/minio-init.sh" ]
+    volumes:
+      - ./docker/minio-init.sh:/scripts/minio-init.sh
+      - ./src/main/resources/parquet:/examples/parquet
 
   postgres:
-    # version should be lower postgres 10.x
-    image: postgres:9.6.24
-    ports:
-      - 5432:5432
-    volumes:
-      - postgres:/var/lib/postgresql/data
+    image: postgres:15
+    container_name: postgres
+    restart: always
     environment:
-      POSTGRES_DB: metastore
-      POSTGRES_USER: hive
-      POSTGRES_PASSWORD: hivepassword
-    command: >
-      postgres -c config_file=/var/lib/postgresql/data/postgresql.conf
+      - POSTGRES_USER=hive
+      - POSTGRES_PASSWORD=hive
+      - POSTGRES_DB=metastore_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
 
+  # The Hive Metastore service
   hive-metastore:
     build:
       context: .
-      dockerfile: docker/Dockerfile
+      dockerfile: Dockerfile.hive4
     container_name: hive-metastore
-    ports:
-      - "9083:9083"  # Hive Metastore port
-      - "10000:10000"  # beeline
+    restart: always
     environment:
-      DB_DRIVER: postgres
-      SERVICE_NAME: metastore
-      HIVE_DB: metastore
-      HIVE_USER: hive
-      HIVE_PASSWORD: hivepassword
-      HIVE_DB_HOST: postgres
-      HIVE_DB_PORT: 5432
-      HIVE_LOG_LEVEL: DEBUG
-#    entrypoint: >
-#      sh -c "
-#      /opt/hive/bin/schematool -dbType postgres -initSchema --verbose &&
-#      /opt/hive/bin/hive --service metastore"
-    entrypoint: >
-      sh -c "
-      /opt/hive/bin/hive --service metastore"
-#    healthcheck:
-#      test: ["CMD", "nc", "-z", "localhost", "9083"]
-#      interval: 30s
-#      timeout: 20s
-#      retries: 3
+      - SERVICE_NAME=metastore
+      - HIVE_CUSTOM_CONF_DIR=/opt/hive-conf
+      - DOCKER_HOST_IP=host.docker.internal # Allows access from the host network
+      - DB_DRIVER=postgres
+      - DATABASE_VENDOR=postgres
+      - DATABASE_NAME=metastore_db
+      - DATABASE_USER=hive
+      - DATABASE_PASSWORD=hive
+      - DATABASE_URL=jdbc:postgresql://postgres:5432/metastore_db
+      - METASTORE_CONNECTION_URL=jdbc:postgresql://postgres:5432/metastore_db
+      - METASTORE_DB_DRIVER=org.postgresql.Driver
+    ports:
+      - "9083:9083"
+    depends_on:
+      - postgres
 
 volumes:
   postgres:
+  postgres_data:
   minio_data:
     driver: local 

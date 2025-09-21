@@ -1,7 +1,8 @@
-package com.example
+package com.mikerusoft.examples.tools
 
 trait PartitionBy {
   def expr(): String
+  def column: String
 }
 
 case class Field(column: String) extends PartitionBy {

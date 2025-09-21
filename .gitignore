@@ -13,3 +13,6 @@ project/target/
 *.iws
 *.xml
 .bsp/
+
+aws.csv
+**/.DS_Store

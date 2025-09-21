@@ -1,0 +1,24 @@
+FROM apache/hive:4.0.0-beta-1
+
+USER root
+
+RUN apt-get update \
+    && apt-get dist-upgrade -y \
+    && apt-get install -y --no-install-recommends wget curl procps net-tools iputils-ping vim \
+    && apt-get clean \
+    && rm -rf \
+      /var/lib/apt/lists/* \
+      /tmp/* \
+      /var/tmp/*
+
+RUN mkdir -p /tmp/jars && cd /tmp/jars && \
+    wget -q https://repo1.maven.org/maven2/software/amazon/awssdk/bundle/2.35.3/bundle-2.35.3.jar && \
+    wget -q https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.792/aws-java-sdk-bundle-1.12.792.jar && \
+    wget -q https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.4.1/hadoop-aws-3.4.1.jar && \
+    wget -q https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-common/3.4.1/hadoop-common-3.4.1.jar && \
+    wget -q https://repo1.maven.org/maven2/org/postgresql/postgresql/42.7.8/postgresql-42.7.8.jar && \
+    cp /tmp/jars/*.jar /opt/hive/lib/
+
+COPY docker/hive-site.xml /opt/hive-conf/hive-site.xml
+
+USER hive

@@ -1,31 +1,61 @@
 <?xml version="1.0"?>
 <configuration>
     <property>
+        <name>hive.metastore.uris</name>
+        <value>thrift:// hive-metastore:9083</value>
+        <description>Thrift URI for the remote metastore</description>
+    </property>
+    <property>
+        <name>hive.metastore.warehouse.dir</name>
+        <value>/user/hive/warehouse</value>
+        <description>Location of default Hive warehouse for non-Iceberg tables</description>
+    </property>
+    <property>
         <name>javax.jdo.option.ConnectionURL</name>
-        <value>jdbc:postgresql://postgres:5432/metastore</value>
+        <value>jdbc:postgresql://postgres:5432/metastore_db</value>
+        <description>JDBC connect string for the Hive Metastore database</description>
     </property>
     <property>
         <name>javax.jdo.option.ConnectionDriverName</name>
         <value>org.postgresql.Driver</value>
+        <description>Driver class name for the Hive Metastore database</description>
     </property>
     <property>
         <name>javax.jdo.option.ConnectionUserName</name>
         <value>hive</value>
+        <description>Username for the Hive Metastore database</description>
     </property>
     <property>
         <name>javax.jdo.option.ConnectionPassword</name>
-        <value>hivepassword</value>
+        <value>hive</value>
+        <description>Password for the Hive Metastore database</description>
     </property>
     <property>
-        <name>datanucleus.schema.autoCreateAll</name>
-        <value>false</value>
+        <name>fs.s3a.access.key</name>
+        <value>minioadmin</value>
     </property>
     <property>
-        <name>datanucleus.fixedDatastore</name>
+        <name>fs.s3a.secret.key</name>
+        <value>minioadmin</value>
+    </property>
+    <property>
+        <name>fs.s3a.endpoint</name>
+        <value>http://minio:9000</value>
+    </property>
+    <property>
+        <name>fs.s3a.path.style.access</name>
         <value>true</value>
     </property>
     <property>
-        <name>hive.metastore.client.capability.check</name>
+        <name>fs.s3a.ssl.enabled</name>
         <value>false</value>
+    </property>
+    <property>
+        <name>fs.s3a.impl</name>
+        <value>org.apache.hadoop.fs.s3a.S3AFileSystem</value>
+    </property>
+    <property>
+        <name>fs.s3a.aws.credentials.provider</name>
+        <value>org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider</value>
     </property>
 </configuration>
