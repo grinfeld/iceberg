@@ -20,50 +20,44 @@ services:
       retries: 3
 
   postgres:
-    # version should be lower postgres 10.x
-    image: postgres:9.6.24
+    image: postgres:15
+    container_name: postgres
+    restart: always
+    environment:
+      - POSTGRES_USER=hive
+      - POSTGRES_PASSWORD=hive
+      - POSTGRES_DB=metastore_db
     ports:
-      - 5432:5432
+      - "5432:5432"
     volumes:
-      - postgres:/var/lib/postgresql/data
-    environment:
-      POSTGRES_DB: metastore
-      POSTGRES_USER: hive
-      POSTGRES_PASSWORD: hivepassword
-    command: >
-      postgres -c config_file=/var/lib/postgresql/data/postgresql.conf
+      - postgres_data:/var/lib/postgresql/data
 
+  # The Hive Metastore service
   hive-metastore:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
-    container_name: hive-metastore
-    ports:
-      - "9083:9083"  # Hive Metastore port
-      - "10000:10000"  # beeline
+    image: apache/hive:4.0.0-beta-1 # Use Hive 4.0.0+ for direct Iceberg compatibility
+    container_name: metastore
+    restart: always
     environment:
-      DB_DRIVER: postgres
-      SERVICE_NAME: metastore
-      HIVE_DB: metastore
-      HIVE_USER: hive
-      HIVE_PASSWORD: hivepassword
-      HIVE_DB_HOST: postgres
-      HIVE_DB_PORT: 5432
-      HIVE_LOG_LEVEL: DEBUG
-#    entrypoint: >
-#      sh -c "
-#      /opt/hive/bin/schematool -dbType postgres -initSchema --verbose &&
-#      /opt/hive/bin/hive --service metastore"
-    entrypoint: >
-      sh -c "
-      /opt/hive/bin/hive --service metastore"
-#    healthcheck:
-#      test: ["CMD", "nc", "-z", "localhost", "9083"]
-#      interval: 30s
-#      timeout: 20s
-#      retries: 3
+      - SERVICE_NAME=hive-metastore
+      - HIVE_CUSTOM_CONF_DIR=/opt/hive-conf
+      - DOCKER_HOST_IP=host.docker.internal # Allows access from the host network
+      - DATABASE_VENDOR=postgres
+      - DATABASE_NAME=metastore_db
+      - DATABASE_USER=hive
+      - DATABASE_PASSWORD=hivepassword
+      - DATABASE_URL=jdbc:postgresql://postgres:5432/metastore_db
+      - METASTORE_CONNECTION_URL=jdbc:postgresql://postgres:5432/metastore_db
+      - METASTORE_DB_DRIVER=org.postgresql.Driver
+    ports:
+      - "9083:9083"
+    volumes:
+      # Mount the hive-conf directory
+      - ./docker/hive-site.xml:/opt/hive-conf/hive-site.xml
+    depends_on:
+      - postgres
 
 volumes:
   postgres:
+  postgres_data:
   minio_data:
     driver: local 

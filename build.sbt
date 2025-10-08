@@ -15,7 +15,7 @@ ThisBuild / autoCompilerPlugins := true
 val Versions = new {
   val spark = "4.0.0"
   val hadoop = "3.4.1"
-  val aws = "2.20.143"
+  val aws = "2.33.11"
   val iceberg = "1.10.0"
   val log4j = "2.20.0"
   val jackson = "2.15.3"
@@ -41,7 +41,7 @@ libraryDependencies ++= Seq(
     .exclude("org.apache.parquet", "parquet-common")
     .exclude("org.apache.parquet", "parquet-hadoop")
     .exclude("org.apache.parquet", "parquet-column"),
-  ("org.apache.iceberg" % "iceberg-aws" % Versions.iceberg)
+  ("org.apache.iceberg" % "iceberg-aws-bundle" % Versions.iceberg)
     .exclude("com.fasterxml.jackson.core", "jackson-databind")
     .exclude("com.fasterxml.jackson.core", "jackson-core")
     .exclude("com.fasterxml.jackson.core", "jackson-annotations")
@@ -50,12 +50,6 @@ libraryDependencies ++= Seq(
     .exclude("org.apache.parquet", "parquet-column")
   ,
 
-  ("org.apache.iceberg" % "iceberg-hive-runtime" % "1.7.2")
-    .exclude("org.apache.parquet", "parquet-common")
-    .exclude("org.apache.parquet", "parquet-hadoop")
-    .exclude("org.apache.parquet", "parquet-column")
-    .exclude("org.apache.thrift", "libthrift")
-  ,
   ("org.apache.hive" % "hive-metastore" % Versions.hive)
     .exclude("org.apache.parquet", "parquet-hadoop") exclude("org.apache.thrift", "libthrift"),
 
