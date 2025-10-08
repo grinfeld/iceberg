@@ -1,3 +1,5 @@
+package com.mikerusoft.examples
+
 /*
 package com.example
 

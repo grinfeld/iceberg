@@ -1,23 +1,39 @@
 services:
+  # MinIO for local S3-compatible storage
   minio:
     image: minio/minio:latest
-    container_name: minio
     ports:
-      - "9000:9000"  # API
-      - "9001:9001"  # Console
+      - "9000:9000"
+      - "9001:9001"
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
       MINIO_REGION: us-east-1
-      MINIO_BROWSER_REDIRECT_URL: http://localhost:9001
     volumes:
       - minio_data:/data
     command: server /data --console-address ":9001"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
       interval: 30s
       timeout: 20s
       retries: 3
+    restart: always
+
+  # MinIO Client for setup (bucket creation and policies)
+  minio-client:
+    image: minio/mc:latest
+    container_name: minio-client-airflow
+    depends_on:
+      - minio
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_REGION: us-east-1
+      STORAGE_ENDPOINT: http://minio:9000
+    entrypoint: [ "sh", "-c", "/scripts/minio-init.sh" ]
+    volumes:
+      - ./docker/minio-init.sh:/scripts/minio-init.sh
+      - ./src/main/resources/parquet:/examples/parquet
 
   postgres:
     image: postgres:15
@@ -35,16 +51,17 @@ services:
   # The Hive Metastore service
   hive-metastore:
     image: apache/hive:4.0.0-beta-1 # Use Hive 4.0.0+ for direct Iceberg compatibility
-    container_name: metastore
+    container_name: hive-metastore
     restart: always
     environment:
-      - SERVICE_NAME=hive-metastore
+      - SERVICE_NAME=metastore
       - HIVE_CUSTOM_CONF_DIR=/opt/hive-conf
       - DOCKER_HOST_IP=host.docker.internal # Allows access from the host network
+      - DB_DRIVER=postgres
       - DATABASE_VENDOR=postgres
       - DATABASE_NAME=metastore_db
       - DATABASE_USER=hive
-      - DATABASE_PASSWORD=hivepassword
+      - DATABASE_PASSWORD=hive
       - DATABASE_URL=jdbc:postgresql://postgres:5432/metastore_db
       - METASTORE_CONNECTION_URL=jdbc:postgresql://postgres:5432/metastore_db
       - METASTORE_DB_DRIVER=org.postgresql.Driver
@@ -53,6 +70,7 @@ services:
     volumes:
       # Mount the hive-conf directory
       - ./docker/hive-site.xml:/opt/hive-conf/hive-site.xml
+      - ./docker/postgresql-42.7.8.jar:/opt/hive/lib/postgresql-42.7.8.jar
     depends_on:
       - postgres
 

@@ -1,4 +1,4 @@
-package com.example
+package com.mikerusoft.examples.tools
 
 trait PartitionBy {
   def expr(): String

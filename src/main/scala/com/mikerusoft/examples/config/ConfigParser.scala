@@ -1,85 +1,27 @@
-package com.example
+package com.mikerusoft.examples.config
 
+import com.mikerusoft.examples.{Bucket, DateType, Field, PartitionBy, Truncate}
 import com.typesafe.config.{Config, ConfigFactory, ConfigValue, ConfigValueFactory, ConfigValueType}
-import org.apache.spark.sql.{DataFrame, SparkSession}
-
+import org.apache.spark.sql.SparkSession
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
-object SparkFlowIceberg {
-
-  case class SparkFlowIceberg(spark: SparkSession, config: Config) {
-
-      def readParquet(): DataFrame = {
-        val df = spark.read.parquet(config.getString("app.s3.from"))
-        createTableIfNotExist()
-        df
-      }
-
-      def stop(): Unit = {
-        spark.stop()
-      }
-
-      def table(name: String): DataFrame = {
-        spark.table(name)
-      }
-
-      def icebergConf(): IcebergConf = {
-        config.icebergConf()
-      }
-
-      private def createTableIfNotExist(): Unit = {
-        val iceberg: IcebergConf = config.icebergConf()
-
-/*        spark.sql(s"DROP table ${iceberg.fullTableName}")
-        spark.sql(s"DROP NAMESPACE ${iceberg.fullDbName}")*/
-
-        val doesDbExist = spark.catalog.databaseExists(iceberg.fullDbName)
-        if (!doesDbExist) {
-          val createDbSql = s"CREATE NAMESPACE IF NOT EXISTS ${iceberg.fullDbName}"
-          // Create table with Parquet schema
-          println(s"Creating new db:\n$createDbSql")
-          spark.sql(createDbSql)
-        }
-        // Check if table exists
-        val tableExists = spark.catalog.tableExists(iceberg.fullDbName, iceberg.table)
-        if (!tableExists) {
-          // Read Parquet data to get schema
-          val parquetPath = config.getString("app.s3.from")
-          spark.read.parquet(parquetPath).show(1)
-          val parquetSchema = spark.read.parquet(parquetPath).schema
-
-          val partitionBy = config.getPartitionBy() match {
-            case List() => ""
-            case l: List[PartitionBy] => l.map(_.expr()).mkString("PARTITIONED BY (", ", ", ")")
-          }
-
-          val createTableSql = s"""
-              CREATE TABLE IF NOT EXISTS ${iceberg.fullTableName} (
-                ${parquetSchema.fields.map(field => s"${field.name} ${field.dataType.sql}").mkString(",\n\t\t")},
-                ts Timestamp
-              ) USING iceberg
-              $partitionBy
-            """
-          // partition: days(ts) automatically contains years, months, days
-          // Create table with Parquet schema
-          println(s"Creating new table with schema:\n$createTableSql")
-          spark.sql(createTableSql)
-        }
-      }
-  }
-
+object ConfigParser {
   implicit class ConfigParser (config: Config) {
     lazy val iceberg: IcebergConf = createIcebergConf()
 
     private def createIcebergConf(): IcebergConf = {
-      val catalogType = config.getConfig("app.config.spark.sql.catalog").entrySet()
-        .asScala.filter(e => e.getKey.matches("^.+\\.type"))
-        .map(_.getValue.unwrapped().asInstanceOf[String])
-        .take(1).fold("")((a1, a2) => a1 + a2)
-      IcebergConf(catalogType, config.getString("app.iceberg.database"), config.getString("app.iceberg.table"))
+      val catalogName = config.getConfig("app.config.spark.sql.catalog").entrySet()
+        .asScala
+        .filter(e => e.getKey.matches("^.+\\.type"))
+        .map(e => e.getKey.substring(0, e.getKey.length - 5))
+        .take(1).toList match {
+        case List() => ""
+        case ::(head, next) => head
+      }
+      IcebergConf(catalogName, config.getString("app.iceberg.database"), config.getString("app.iceberg.table"))
     }
 
-    def getPartitionBy(): List[PartitionBy] = {
+    def getPartitionBy: List[PartitionBy] = {
       if (!config.hasPath("app.partition-by"))
         return List()
       config.getConfigList("app.partition-by")
@@ -96,7 +38,7 @@ object SparkFlowIceberg {
         }).toList
     }
 
-    def sparkFlow(): SparkFlowIceberg = {
+    def sparkSession(): SparkSession = {
       val appConfig: Config = config.getConfig("app")
       var sparkBuilder = SparkSession.builder()
         .appName(appConfig.getString("name"))
@@ -112,8 +54,7 @@ object SparkFlowIceberg {
         }
       })
 
-      val spark = sparkBuilder.getOrCreate()
-      SparkFlowIceberg(spark, config)
+      sparkBuilder.getOrCreate()
     }
 
     def icebergConf(): IcebergConf = {

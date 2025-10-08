@@ -27,7 +27,7 @@
     </property>
     <property>
         <name>javax.jdo.option.ConnectionPassword</name>
-        <value>hivepassword</value>
+        <value>hive</value>
         <description>Password for the Hive Metastore database</description>
     </property>
 </configuration>
