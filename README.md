@@ -13,11 +13,11 @@ So I tried to add `write.location-provider.impl` that writes files under a diffe
 if we have partitions: `key1` and `key2`, we can define that all files will be written only under `key1` path, e.g., `s3a://bucket/key1=xxxx/` 
 and metadata defined by other keys stored in catalog files. It didn't solve the issue with small files, but now they are under the same key in Object Storage.
 I added compaction (by calling [rewrite_data_files](https://iceberg.apache.org/docs/latest/spark-procedures/#rewrite_data_files) immediately after the main job had finished. 
-However, it looks that despite storing files in flat structure, it compacts according to partitionBy fields :(    
+However, it looks that despite storing files in flat structure, it compacts according to original partitionBy fields :(    
 
 Main entry is [IcebergApp](src/main/scala/com/mikerusoft/examples/IcebergApp.scala)
 
-Below, I've included a short summary and explanation, created by Claude. :) 
+Below, I've included a short summary and explanation, created by Claude (and changed partially by me) :) 
 
 ## Key Features
 
@@ -56,35 +56,38 @@ Below, I've included a short summary and explanation, created by Claude. :)
 - **Hadoop**: 3.4.1
 - **AWS SDK**: 2.33.11 (S3, STS, Glue)
 - **Apache Hive**: 3.1.3 (Metastore)
-- **Apache Parquet**: 1.13.1
 
 ## Project Structure
 
 ```
 iceberg/
 ├── src/main/scala/com/mikerusoft/examples/
-│   ├── IcebergApp.scala              # Main application entry point
-│   ├── SimpleIcebergApp.scala        # Simplified Iceberg example
-│   ├── S3IcebergExample.scala        # S3-specific example
-│   ├── FlatLocationProvider.scala    # Custom location provider implementation
+│   ├── IcebergApp.scala                    # Main application entry point
+│   ├── SimpleIcebergApp.scala              # Simplified Iceberg example
+│   ├── S3IcebergExample.scala              # S3-specific example
+│   ├── FlatLocationProvider.scala          # Custom location provider implementation
+│   ├── compaction/                         # package defines the compaction process
+│   │   ├── Strategy.scala                  # strategy parameter for compaction job
+│   │   ├── OptionsField.scala              # defines the options parameter to use with the Strategy.scala
+│   │   ├── RewriteJobOrderValues.scala     # defines the values for Option field re-write-job-order  
 │   ├── config/
-│   │   ├── ConfigParser.scala        # Configuration parsing utilities
-│   │   └── IcebergConf.scala        # Iceberg configuration wrapper
+│   │   ├── ConfigParser.scala              # Configuration parsing utilities
+│   │   └── IcebergConf.scala               # Iceberg configuration wrapper
 │   └── tools/
-│       ├── MySparkImplicits.scala   # Spark DataFrame extensions
-│       ├── PartitionBy.scala        # Partition specification helpers
-│       └── Profiles.scala           # Configuration profiles
+│       ├── MySparkImplicits.scala          # Spark DataFrame extensions
+│       ├── PartitionBy.scala               # Partition specification helpers
+│       └── Profiles.scala                  # Configuration profiles
 ├── src/main/resources/
-│   └── application.hadoop.conf      # Hadoop/AWS configuration
-├── docker-compose.yml               # Docker setup for local testing
-└── build.sbt                        # SBT build configuration
+│   └── application.hadoop.conf             # Hadoop/AWS configuration
+├── docker-compose.yml                      # Docker setup for local testing
+└── build.sbt                               # SBT build configuration
 ```
 
 ## How FlatLocationProvider Works
 
 The `FlatLocationProvider` is a custom Iceberg location provider that allows you to control partition directory structure through configuration:
 
-1. **Configuration**: Set `write.location-provider.flat.fields` to specify which partition fields to use
+1. **Configuration**: Set `write.location-provider.flat.fields` table property to specify which partition fields to use
 2. **Filtering**: It filters partition fields based on the configured field names
 3. **Partial Partitioning**: Creates a new PartitionSpec with only the selected fields
 4. **Data Writing**: Writes data using the filtered partition structure
@@ -102,64 +105,105 @@ write.location-provider.flat.fields = "region,date"  # Use only these partition 
 - SBT (Scala Build Tool)
 - Docker (optional, for local testing)
 
-### Compile
-```bash
-sbt compile
-```
-
-### Run Tests
-```bash
-sbt test
-```
-
-### Package
-```bash
-sbt package
-```
-
 ## Running the Application
 
-### Local Mode
+### Docker
 ```bash
-sbt "runMain com.mikerusoft.examples.IcebergApp local"
-```
-
-### Docker Mode
-```bash
-# Start Docker services
+# Start Docker services contained minIO, hive metastore
 docker-compose up -d
-
-# Run application
-sbt "runMain com.mikerusoft.examples.IcebergApp docker"
 ```
 
-### Hadoop/Production Mode
-```bash
-sbt "runMain com.mikerusoft.examples.IcebergApp hadoop"
-```
+## Run (locally via IDE)
+
+The entry point is [IcebergApp](src/main/scala/com/mikerusoft/examples/IcebergApp.scala). While running it, please set env variable `PROFILE` - it should be one of `hadoop`, `hive`, `glue`.
 
 ## Configuration Profiles
 
 The project supports multiple configuration profiles:
 
-- **local**: Uses local file system and in-memory catalog
-- **docker**: Uses MinIO (S3-compatible) and containerized services
-- **hadoop**: Production configuration with AWS S3 and Glue catalog
+The initial configurations is stored in [application.conf](src/main/resources/application.conf)
+The additional configuration is loaded by value received from env var `PROFILE`, i.e. `application.{profile}.conf` located in [src/main/resources/](src/main/resources/).
+Possible values hadoop, hive or glue.
 
-Configuration files are located in `src/main/resources/` and follow the pattern `application.{profile}.conf`.
+## Code explanation
 
-## Use Cases
+```scala
+    val config = profile.createConfig()
+    val spark: SparkSession = config.sparkSession()
+    val icebergConf: IcebergConf = config.icebergConf()
+    
+    spark.read.parquet(config.getString("app.s3.from"))
+        .createCatalogIfDoesNotExist(icebergConf)
+        .createTableOfDoesNotExist(icebergConf, config.getPartitionBy)
+        .withColumn("ts", timestamp_millis(col("resolvedTimestamp")))
+        .writeTo(icebergConf.fullTableName)
+        .appendAnd()
+      .compact(config.icebergConf(), Binpack(MinInputFiles(1)))
+```
 
-1. **Data Lake Migration**: Migrate Parquet data to Iceberg format with custom partitioning
-2. **Partition Strategy Optimization**: Experiment with different partitioning schemes without restructuring data
-3. **Multi-Region Data Management**: Control partition structure for optimal query performance
-4. **Schema Evolution**: Demonstrate Iceberg's schema evolution capabilities
-5. **Cloud Integration**: Examples of integrating Spark with AWS S3 and Glue
+* `createCatalogIfDoesNotExist` -> creates catalog if not exists
+* *  Catalog name is taken from spark.sql.catalog configuration (`mycatalog` value is used in example)
+```hocon
+app {
+  config {
+    spark {
+      sql {
+        catalog {
+          mycatalog {
+            type = "hadoop"
+            ........
+            ........
+            ........
+          }
+        }
+      }
+    }
+  }
+}
+```
+* `createTableOfDoesNotExist` -> creates database if not exists with schema based on raw parquet data
+* * In Iceberg the table is in format `database.table` 
+```hocon
+app {
+  iceberg {
+    database = "demo"
+    database = ${?ICEBERG_DB_NAME}
+    table = "raw_events"
+    table = ${?ICEBERG_TABLE_NAME}
+  }
+}
+```
+* * Partitions is defined by set of fields in [PartitionBy](src/main/scala/com/mikerusoft/examples/tools/PartitionBy.scala) or/and in configuration:
+```hocon
+app {
+  partition-by = [
+    # supported types are yhe same as iceberg:
+    # 1. identity -> just col name expected
+    # 2. bucket -> col name and bucket size
+    # 3. date -> col name and date func, a.k.a. year, month, day or hour
+    # 4. truncate -> col name and truncate value (see iceberg manaul: https://iceberg.apache.org/spec/#truncate-transform-details)
+    {
+      col = "sectionId"
+      type = "identity"
+    },
+    {
+      col = "dyid"
+      type = "bucket"
+      size = 16
+      size = ${?DYID_BUCKET_SIZE}
+    },
+    {
+      col = "eventType"
+      type = "identity"
+    },
+    {
+      col = "ts"
+      type = "date"
+      func = "hour"
+    }
+  ]
+}
+```
 
-## Key Classes
 
-- **FlatLocationProvider**: Custom location provider for flexible partition management
-- **MySparkImplicits**: Extension methods for Spark DataFrames (catalog and table creation)
-- **PartitionBy**: Utilities for building Iceberg partition specifications
-- **IcebergConf**: Configuration wrapper for Iceberg table settings
-- **ConfigParser**: Profile-based configuration management
+
