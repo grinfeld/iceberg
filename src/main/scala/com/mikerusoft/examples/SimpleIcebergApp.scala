@@ -1,8 +1,9 @@
 package com.mikerusoft.examples
 
+import com.mikerusoft.examples.compaction.{Binpack, MinFileSizeBytes, MinInputFiles, TargetFileSizeBytes}
 import com.mikerusoft.examples.config.ConfigParser.{ConfigParser, ConfigStarter}
 import com.mikerusoft.examples.config.IcebergConf
-import com.mikerusoft.examples.tools.MySparkImplicits.DataFrameWrapper
+import com.mikerusoft.examples.tools.MySparkImplicits.{AfterWriteAction, DataFrameWrapper, DataFrameWriterV2Write}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.{col, timestamp_millis}
 
@@ -17,11 +18,8 @@ object SimpleIcebergApp {
         .createTableOfDoesNotExist(icebergConf, config.getPartitionBy)
         .withColumn("ts", timestamp_millis(col("resolvedTimestamp")))
         .writeTo(icebergConf.fullTableName)
-      .append()
-
-    // Print current schema and data
-    println("\nCurrent table schema:")
-    spark.table(icebergConf.fullTableName).printSchema()
+        .appendAnd()
+      .compact(config.icebergConf(), Binpack(MinInputFiles(1)))
 
     println("\nData in Iceberg table:")
     spark.table(icebergConf.fullTableName).show(5, truncate = false)

@@ -5,6 +5,10 @@ case class IcebergConf(catalogName: String, database: String, table: String) {
     s"$catalogName.$database.$table"
   }
 
+  def tableDB: String = {
+    s"$database.$table"
+  }
+
   def fullDbName: String = {
     s"$catalogName.$database"
   }
