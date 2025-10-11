@@ -9,6 +9,7 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 object ConfigParser {
   implicit class ConfigParser (config: Config) {
     lazy val iceberg: IcebergConf = createIcebergConf()
+    lazy val partitionByFields: List[PartitionBy] = getPartitionByFields()
 
     private def createIcebergConf(): IcebergConf = {
       val catalogName = config.getConfig("app.config.spark.sql.catalog").entrySet()
@@ -22,7 +23,7 @@ object ConfigParser {
       IcebergConf(catalogName, config.getString("app.iceberg.database"), config.getString("app.iceberg.table"))
     }
 
-    def getPartitionBy: List[PartitionBy] = {
+    private def getPartitionByFields(): List[PartitionBy] = {
       if (!config.hasPath("app.partition-by"))
         return List()
       config.getConfigList("app.partition-by")
@@ -37,6 +38,10 @@ object ConfigParser {
             case v: Any => throw new IllegalArgumentException("Only identity, bucket or date supported. But received " + v.toString)
           }
         }).toList
+    }
+
+    def getPartitionBy: List[PartitionBy] = {
+      partitionByFields
     }
 
     def sparkSession(): SparkSession = {

@@ -1,8 +1,10 @@
 package com.mikerusoft.examples
 
 import org.apache.spark.sql.SparkSession
+import org.slf4j.{Logger, LoggerFactory}
 
 object S3IcebergExample {
+  val log: Logger = LoggerFactory.getLogger(S3IcebergExample.getClass.getName)
   def main(args: Array[String]): Unit = {
     val spark = SparkSession.builder()
       .appName("Spark Iceberg S3 Example")
@@ -46,7 +48,7 @@ object S3IcebergExample {
 
       // Read data from the Iceberg table
       val result = spark.table("demo.users")
-      println("Data from Iceberg table in S3/MinIO:")
+      log.info("Data from Iceberg table in S3/MinIO:")
       result.show()
 
       // Example of reading specific partitions

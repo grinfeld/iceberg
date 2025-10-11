@@ -145,8 +145,10 @@ __Note:__ if you use [FlatTableProperty](src/main/scala/com/mikerusoft/examples/
         .withColumn("ts", timestamp_millis(col("resolvedTimestamp")))
         .writeTo(icebergConf.fullTableName)
         .appendAnd()
+      // will do nothing if catalog type is 'glue'
       .compact(config.icebergConf(), Binpack(MinInputFiles(1)))
 ```
+__Note:__ All this `createCatalogIfDoesNotExist`, `createTableOfDoesNotExist` and `compact` can be run on `SparkSession` directly, since I extended the `SparkSession` implicitly with these methods: see [SparkSessionWrapper](src/main/scala/com/mikerusoft/examples/tools/MySparkImplicits.scala)
 
 * `createCatalogIfDoesNotExist` -> creates catalog if not exists
 * *  Catalog name is taken from spark.sql.catalog configuration (`mycatalog` value is used in example)

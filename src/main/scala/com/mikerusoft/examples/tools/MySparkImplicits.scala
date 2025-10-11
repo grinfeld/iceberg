@@ -6,8 +6,11 @@ import com.mikerusoft.examples.tableproperties.TableProperty
 import org.apache.spark.sql.catalyst.analysis.{CannotReplaceMissingTableException, NoSuchTableException, TableAlreadyExistsException}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{DataFrameWriterV2, Dataset, Row, SparkSession}
+import org.slf4j.{Logger, LoggerFactory}
 
 object MySparkImplicits {
+
+  val log: Logger = LoggerFactory.getLogger(MySparkImplicits.getClass.getName)
 
   class SessionAlreadyClosed (message: String) extends Exception(message: String) {}
 
@@ -18,15 +21,8 @@ object MySparkImplicits {
       sparkOpt match {
         case None => throw new SessionAlreadyClosed("Session is already closed")
         case Some(spark) =>
-          val sql =  f"""
-            |CALL ${icebergConf.catalogName}.system.rewrite_data_files(
-            |  table => '${icebergConf.tableDB}',
-            |  ${strategy.write()}
-            |)
-          |""".stripMargin
-          spark.table(icebergConf.fullTableName).show(1, truncate = false)
-          val res = spark.sql(sql).collectAsList()
-          println(res)
+          if (!spark.conf.get(s"spark.sql.catalog.${icebergConf.catalogName}.type", "").equals("glue"))
+            spark.callCompaction(icebergConf, strategy)
       }
     }
   }
@@ -73,13 +69,26 @@ object MySparkImplicits {
 
   implicit class SparkSessionWrapper(spark: SparkSession) {
 
+    def callCompaction(icebergConf: IcebergConf, strategy: Strategy): SparkSession = {
+      val sql =  f"""
+          |CALL ${icebergConf.catalogName}.system.rewrite_data_files(
+          |  table => '${icebergConf.tableDB}',
+          |  ${strategy.write()}
+          |)
+          |""".stripMargin
+      val res = spark.sql(sql).collectAsList()
+      log.info(s"$res")
+      spark
+    }
+
     def catalogIfDoesNotExist(iceberg: IcebergConf): SparkSession = {
       val doesDbExist = spark.catalog.databaseExists(iceberg.fullDbName)
       if (!doesDbExist) {
         val createDbSql = s"CREATE NAMESPACE IF NOT EXISTS ${iceberg.fullDbName}"
         // Create table with Parquet schema
-        println(s"Creating new db:\n${iceberg.fullDbName}")
-        println(spark.sql(createDbSql).collectAsList())
+        log.info(s"Creating new db:\n${iceberg.fullDbName}")
+        val res = spark.sql(createDbSql).collectAsList()
+        log.info(s"$res")
       }
       spark.sql(s"USE ${iceberg.catalogName}")
       spark
@@ -104,9 +113,9 @@ object MySparkImplicits {
         val tableProps = if (tableProperties.isEmpty) "" else tableProperties.map(_.writeValue()).mkString("TBLPROPERTIES (\n", ",\n\t\t", "\n)")
         // partition: days(ts) automatically contains years, months, days
         // Create table with Parquet schema
-        // println(s"Creating new table with schema:\n$createTableSql")
         val tableStructure = (if (tableProps.isEmpty) createTableSql else (createTableSql + "\n" + tableProps))
-        println(spark.sql(tableStructure).collectAsList())
+        val res = spark.sql(tableStructure).collectAsList()
+        log.info(s"$res")
       }
       spark
     }

@@ -14,12 +14,13 @@ ThisBuild / autoCompilerPlugins := true
 // versions are matter. This is a matrix that works around the spark 3.5.5
 val Versions = new {
   val spark = "4.0.0"
-  val hadoop = "3.4.1"
+  val hadoop = "3.4.2"
   val aws = "2.33.11"
   val iceberg = "1.10.0"
   val log4j = "2.20.0"
   val jackson = "2.15.3"
   val slf4j = "2.0.7"
+  val scalaLogger = "3.9.6"
   val hive = "3.1.3"
   val parquet = "1.13.1"
   val parquetFormat = "2.9.0"
@@ -58,6 +59,7 @@ libraryDependencies ++= Seq(
   "org.apache.logging.log4j" % "log4j-api" % Versions.log4j,
   "org.apache.logging.log4j" % "log4j-core" % Versions.log4j,
   "org.apache.logging.log4j" % "log4j-slf4j-impl" % Versions.log4j,
+  "com.typesafe.scala-logging" %% "scala-logging" % Versions.scalaLogger,
   "org.apache.thrift" % "libthrift" % Versions.thrift,
 
   // Test dependencies
