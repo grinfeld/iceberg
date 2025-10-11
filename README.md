@@ -12,8 +12,9 @@ I expected files to be written in the root, and partitions (like the rest metada
 So I tried to add `write.location-provider.impl` that writes files under a different path. For example, 
 if we have partitions: `key1` and `key2`, we can define that all files will be written only under `key1` path, e.g., `s3a://bucket/key1=xxxx/` 
 and metadata defined by other keys stored in catalog files. It didn't solve the issue with small files, but now they are under the same key in Object Storage.
+And it sounds reasonable since different spark tasks, possibly with different executors write data. 
 I added compaction (by calling [rewrite_data_files](https://iceberg.apache.org/docs/latest/spark-procedures/#rewrite_data_files) immediately after the main job had finished. 
-However, it looks that despite storing files in flat structure, it compacts according to original partitionBy fields :(    
+However, it looks that despite storing files in flat structure, it compacts according to original partitionBy fields :(  
 
 Main entry is [IcebergApp](src/main/scala/com/mikerusoft/examples/IcebergApp.scala)
 
