@@ -16,6 +16,8 @@ And it sounds reasonable since different spark tasks, possibly with different ex
 I added compaction (by calling [rewrite_data_files](https://iceberg.apache.org/docs/latest/spark-procedures/#rewrite_data_files) immediately after the main job had finished. 
 However, it looks that despite storing files in flat structure, it compacts according to original partitionBy fields :(  
 
+__Note:__ if you use [FlatTableProperty](src/main/scala/com/mikerusoft/examples/tableproperties/TableProperty.scala) and catalog of type `glue`, you can't use compaction or statistic optimizations via `AWS Glue`, since glue won't recognize custom `write.location-provider.impl` [FlatLocationProvider](src/main/scala/com/mikerusoft/examples/FlatLocationProvider.scala).
+
 Main entry is [IcebergApp](src/main/scala/com/mikerusoft/examples/IcebergApp.scala)
 
 Below, I've included a short summary and explanation, created by Claude (and changed partially by me) :) 
