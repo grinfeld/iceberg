@@ -86,7 +86,9 @@ iceberg/
 
 ## How FlatLocationProvider Works
 
-The `FlatLocationProvider` is a custom Iceberg location provider that allows you to control partition directory structure through configuration:
+__Note:__ if you use [FlatLocationProvider](src/main/scala/com/mikerusoft/examples/FlatLocationProvider.scala) and catalog of type `glue`, you can't use compaction or statistic optimizations via `AWS Glue`, since glue won't recognize [FlatLocationProvider](src/main/scala/com/mikerusoft/examples/FlatLocationProvider.scala). 
+
+The [FlatLocationProvider](src/main/scala/com/mikerusoft/examples/FlatLocationProvider.scala) is a custom Iceberg location provider that allows you to control partition directory structure through configuration:
 
 1. **Configuration**: Set `write.location-provider.flat.fields` table property to specify which partition fields to use
 2. **Filtering**: It filters partition fields based on the configured field names
@@ -128,6 +130,8 @@ Possible values hadoop, hive or glue.
 
 ## Code explanation
 
+__Note:__ if you use [FlatTableProperty](src/main/scala/com/mikerusoft/examples/tableproperties/TableProperty.scala) and catalog of type `glue`, you can't use compaction or statistic optimizations via `AWS Glue`, since glue won't recognize custom `write.location-provider.impl` [FlatLocationProvider](src/main/scala/com/mikerusoft/examples/FlatLocationProvider.scala).
+
 ```scala
     val config = profile.createConfig()
     val spark: SparkSession = config.sparkSession()
@@ -135,7 +139,7 @@ Possible values hadoop, hive or glue.
     
     spark.read.parquet(config.getString("app.s3.from"))
         .createCatalogIfDoesNotExist(icebergConf)
-        .createTableOfDoesNotExist(icebergConf, config.getPartitionBy)
+        .createTableOfDoesNotExist(icebergConf, config.getPartitionBy, FlatTableProperty(Field("sectionId")))
         .withColumn("ts", timestamp_millis(col("resolvedTimestamp")))
         .writeTo(icebergConf.fullTableName)
         .appendAnd()

@@ -1,8 +1,10 @@
 package com.mikerusoft.examples
 
-import com.mikerusoft.examples.compaction.{Binpack, MinFileSizeBytes, MinInputFiles, TargetFileSizeBytes}
+import com.mikerusoft.examples.compaction.{Binpack, MinInputFiles}
 import com.mikerusoft.examples.config.ConfigParser.{ConfigParser, ConfigStarter}
 import com.mikerusoft.examples.config.IcebergConf
+import com.mikerusoft.examples.tableproperties.FlatTableProperty
+import com.mikerusoft.examples.tools.Field
 import com.mikerusoft.examples.tools.MySparkImplicits.{AfterWriteAction, DataFrameWrapper, DataFrameWriterV2Write}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.{col, timestamp_millis}

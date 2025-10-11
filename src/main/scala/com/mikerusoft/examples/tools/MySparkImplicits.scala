@@ -2,6 +2,7 @@ package com.mikerusoft.examples.tools
 
 import com.mikerusoft.examples.config.IcebergConf
 import com.mikerusoft.examples.compaction.Strategy
+import com.mikerusoft.examples.tableproperties.TableProperty
 import org.apache.spark.sql.catalyst.analysis.{CannotReplaceMissingTableException, NoSuchTableException, TableAlreadyExistsException}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{DataFrameWriterV2, Dataset, Row, SparkSession}
@@ -64,8 +65,8 @@ object MySparkImplicits {
       df.sparkSession.catalogIfDoesNotExist(iceberg)
       df
     }
-    def createTableOfDoesNotExist(iceberg: IcebergConf, mayBePartitionBy: List[PartitionBy]): Dataset[Row] = {
-      df.sparkSession.tableOfDoesNotExist(iceberg, df.schema, mayBePartitionBy)
+    def createTableOfDoesNotExist(iceberg: IcebergConf, mayBePartitionBy: List[PartitionBy], tableProperties: TableProperty*): Dataset[Row] = {
+      df.sparkSession.tableOfDoesNotExist(iceberg, df.schema, mayBePartitionBy, tableProperties.toList)
       df
     }
   }
@@ -84,30 +85,28 @@ object MySparkImplicits {
       spark
     }
 
-    def tableOfDoesNotExist(iceberg: IcebergConf, parquetSchema: StructType, mayBePartitionBy: List[PartitionBy]): SparkSession = {
+    def tableOfDoesNotExist(iceberg: IcebergConf, parquetSchema: StructType, mayBePartitionBy: List[PartitionBy] = List(), tableProperties: List[TableProperty] = List()): SparkSession = {
       val tableExists = spark.catalog.tableExists(iceberg.fullDbName, iceberg.table)
       if (!tableExists) {
         val partitionBy = mayBePartitionBy match {
-          case List() => ("", "")
+          case List() => ""
           case l: List[PartitionBy] =>
-            (l.map(_.expr()).mkString("PARTITIONED BY (", ", ", ")"), s",'write.location-provider.flat.fields'='${l.head.column}'")
+            l.map(_.expr()).mkString("PARTITIONED BY (", ", ", ")")
         }
 
         val createTableSql = s"""
-              CREATE TABLE IF NOT EXISTS ${iceberg.fullTableName} (
-                ${parquetSchema.fields.map(field => s"${field.name} ${field.dataType.sql}").mkString(",\n\t\t")},
-                ts Timestamp
-              ) USING iceberg
-              ${partitionBy._1}
-              TBLPROPERTIES (
-                  'write.location-provider.impl'='com.mikerusoft.examples.FlatLocationProvider'
-                  ${partitionBy._2}
-              )
-            """
+          | CREATE TABLE IF NOT EXISTS ${iceberg.fullTableName} (
+          |   ${parquetSchema.fields.map(field => s"${field.name} ${field.dataType.sql}").mkString(",\n\t\t")},
+          |   ts Timestamp
+          | ) USING iceberg
+          | $partitionBy
+        |""".stripMargin
+        val tableProps = if (tableProperties.isEmpty) "" else tableProperties.map(_.writeValue()).mkString("TBLPROPERTIES (\n", ",\n\t\t", "\n)")
         // partition: days(ts) automatically contains years, months, days
         // Create table with Parquet schema
         // println(s"Creating new table with schema:\n$createTableSql")
-        println(spark.sql(createTableSql).collectAsList())
+        val tableStructure = (if (tableProps.isEmpty) createTableSql else (createTableSql + "\n" + tableProps))
+        println(spark.sql(tableStructure).collectAsList())
       }
       spark
     }
